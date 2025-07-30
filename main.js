@@ -1,12 +1,26 @@
+// Import the array of valid books
+import { validBooks } from './abbreviations.js';
+
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn");
   const copyBtn = document.getElementById("copyBtn");
   const sermonText = document.getElementById("sermonText");
   const verseList = document.getElementById("verseList");
 
+  // Create regex pattern from validBooks array
+  const validBooksPattern = validBooks
+    .map(book => book.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // Escape regex special chars
+    .join("|");
+
+  // Regex to match verses including ranges like 3:16-18 or 3:16–4:1
+  const verseRegex = new RegExp(
+    `\\b(?:${validBooksPattern})\\s\\d{1,3}:\\d{1,3}(?:[-–]\\d{1,3}|[-–]\\d{1,3}:\\d{1,3})?\\b`,
+    "g"
+  );
+
   extractBtn.addEventListener("click", () => {
     const input = sermonText.value;
-    const matches = input.match(/\b(?:[1-3]?\s?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s\d+:\d+\b/g);
+    const matches = input.match(verseRegex);
 
     verseList.innerHTML = "";
 
