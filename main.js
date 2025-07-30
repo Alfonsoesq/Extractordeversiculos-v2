@@ -1,8 +1,34 @@
-// main.js (only showing relevant additions/modifications)
+import books from './books.js';
 
+const extractBtn = document.getElementById('extractBtn');
 const copyBtn = document.getElementById('copyBtn');
 const verseList = document.getElementById('verseList');
 const toast = document.getElementById('toast');
+const sermonText = document.getElementById('sermonText');
+
+extractBtn.addEventListener('click', () => {
+  const text = sermonText.value;
+  const metadata = extractMetadata(text);
+  const verses = extractVerses(text);
+
+  // Clear previous list
+  verseList.innerHTML = '';
+
+  if (verses.length === 0) {
+    verseList.innerHTML = '<li>No se encontraron versículos.</li>';
+    copyBtn.disabled = true;
+    return;
+  }
+
+  // Add verses to list
+  verses.forEach(v => {
+    const li = document.createElement('li');
+    li.textContent = v;
+    verseList.appendChild(li);
+  });
+
+  copyBtn.disabled = false;
+});
 
 copyBtn.addEventListener('click', () => {
   const versesText = Array.from(verseList.children)
@@ -18,12 +44,49 @@ copyBtn.addEventListener('click', () => {
   });
 });
 
-// Function to show toast message
+// Toast display function
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
 
   setTimeout(() => {
     toast.classList.remove('show');
-  }, 3000); // Toast visible for 3 seconds
+  }, 3000);
+}
+
+// Your existing metadata and verse extraction functions
+function extractMetadata(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+  const title = lines[0] || 'Título no encontrado';
+
+  let tema = 'Tema no encontrado';
+  for (const line of lines.slice(1)) {
+    if (line.toLowerCase().startsWith('tema')) {
+      tema = line;
+      break;
+    }
+  }
+
+  const today = new Date();
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const formattedDate = `${days[today.getDay()]} ${today.getDate()} de ${months[today.getMonth()]}, ${today.getFullYear()}`;
+
+  return { title, tema, date: formattedDate };
+}
+
+function extractVerses(text) {
+  const verseRegex = /(?:\(|\b)([1-3]?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
+  const matches = new Set();
+
+  let match;
+  while ((match = verseRegex.exec(text)) !== null) {
+    let [_, abbr, chapter, verseStart, verseEnd] = match;
+    abbr = abbr.replace(/\.$/, '').toUpperCase();
+    const bookName = books[abbr] || abbr;
+    const range = verseEnd ? `${verseStart}-${verseEnd}` : verseStart;
+    matches.add(`${bookName} ${chapter}:${range}`);
+  }
+
+  return Array.from(matches);
 }
