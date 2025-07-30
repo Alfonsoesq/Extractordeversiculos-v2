@@ -43,7 +43,7 @@ export const books = {
   'MR': 'Marcos', 'MR.': 'Marcos',
   'LC': 'Lucas', 'LC.': 'Lucas',
   'JN': 'Juan', 'JN.': 'Juan',
-  'HEB': 'Hebreos', 'HEB.': 'Hebreos', 'HE.': 'Hebreos',
+  'HEB': 'Hebreos', 'HEB.': 'Hebreos', 'HE': 'Hebreos', 'HE.': 'Hebreos',
   'SANTI': 'Santiago', 'SANTI.': 'Santiago', 'STG.': 'Santiago',
   '1PE': '1 Pedro', '1PE.': '1 Pedro',
   'HCH': 'Hechos', 'HCH.': 'Hechos',
