@@ -1,92 +1,66 @@
 // main.js
-import { bookAbbreviations } from './books.js';
+import { books } from './books.js';
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn");
   const copyBtn = document.getElementById("copyBtn");
   const sermonText = document.getElementById("sermonText");
   const verseList = document.getElementById("verseList");
 
-  // Regex to match Bible verses with optional abbreviation and range like "Lc. 15:1-32" or "Joel 3:14"
-  const verseRegex = new RegExp(
-    '\\b(' +
-      Object.keys(bookAbbreviations)
-        .map(abbr => abbr.replace('.', '\\.?').replace(/\s/g, '\\s?')) // escape dot & optional space
-        .join('|') +
-    ')\\s+\\d+:\\d+(-\\d+)?(,\\s*\\d+)*\\b',
-    'gi'
-  );
+  // Expand abbreviation to full book name
+  function expandAbbreviation(verse) {
+    // Match book abbreviation and chapter:verse
+    const match = verse.match(/([1-3]?\s?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)\s*(\d+:\d+)/i);
+    if (!match) return verse;
 
-  function normalizeBookName(abbreviation) {
-    // Make uppercase and remove trailing dots/spaces to find key in abbreviation map
-    const key = abbreviation.toUpperCase().replace(/\.+$/, '').replace(/\s+/g, ' ').trim();
-    return bookAbbreviations[key] || null;
+    // Normalize abbreviation: uppercase and remove dots
+    let abbr = match[1].toUpperCase().replace(/\./g, '');
+    const numbers = match[2];
+
+    // Lookup in books dictionary
+    if (books[abbr]) {
+      return `${books[abbr]} ${numbers}`;
+    }
+    return verse;
   }
 
-  function extractVerses() {
+  // Extract verses from text
+  function extractVerses(text) {
+    // Regex to find all matches like: "Gen 1:1", "1 Sam 2:3", with optional dot in abbreviation
+    const regex = /\b[1-3]?\s?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+\s\d+:\d+\b/gi;
+    const matches = text.match(regex) || [];
+    // Map and expand all abbreviations
+    return matches.map(expandAbbreviation);
+  }
+
+  extractBtn.addEventListener("click", () => {
     const input = sermonText.value;
-    verseList.innerHTML = '';
+    const verses = extractVerses(input);
 
-    if (!input.trim()) {
-      verseList.innerHTML = '<li>No hay texto para analizar.</li>';
-      copyBtn.disabled = true;
-      return;
-    }
+    verseList.innerHTML = "";
 
-    // Find all matches
-    const matches = [...input.matchAll(verseRegex)];
-
-    if (matches.length === 0) {
-      verseList.innerHTML = '<li>No se encontraron versículos.</li>';
-      copyBtn.disabled = true;
-      return;
-    }
-
-    // Process matches and normalize
-    const uniqueVerses = new Set();
-
-    for (const match of matches) {
-      const rawBook = match[1];
-      const fullBook = normalizeBookName(rawBook);
-      if (!fullBook) continue; // Skip if no valid book found (extra safety)
-      const verseRef = match[0].replace(rawBook, fullBook);
-      uniqueVerses.add(verseRef);
-    }
-
-    if (uniqueVerses.size === 0) {
-      verseList.innerHTML = '<li>No se encontraron versículos válidos.</li>';
-      copyBtn.disabled = true;
-      return;
-    }
-
-    // Show verses
-    uniqueVerses.forEach(verse => {
-      const li = document.createElement('li');
-      li.textContent = verse;
+    if (verses.length > 0) {
+      verses.forEach((verse) => {
+        const li = document.createElement("li");
+        li.textContent = verse;
+        verseList.appendChild(li);
+      });
+      copyBtn.disabled = false;
+    } else {
+      const li = document.createElement("li");
+      li.textContent = "No se encontraron versículos.";
       verseList.appendChild(li);
-    });
-
-    copyBtn.disabled = false;
-  }
-
-  function copyVerses() {
-    const verses = Array.from(verseList.querySelectorAll('li'))
-      .map(li => li.textContent)
-      .join('\n');
-
-    if (!verses.trim()) {
-      alert('No hay versículos para copiar.');
-      return;
+      copyBtn.disabled = true;
     }
+  });
 
-    navigator.clipboard.writeText(verses)
-      .then(() => alert('Versículos copiados al portapapeles'))
-      .catch(() => alert('Error al copiar al portapapeles'));
-  }
+  copyBtn.addEventListener("click", () => {
+    const verses = Array.from(verseList.querySelectorAll("li"))
+      .map((li) => li.textContent)
+      .join("\n");
 
-  extractBtn.addEventListener('click', extractVerses);
-  copyBtn.addEventListener('click', copyVerses);
-
-  // Initially disable copy button
-  copyBtn.disabled = true;
+    navigator.clipboard.writeText(verses).then(() => {
+      alert("Versículos copiados al portapapeles");
+    });
+  });
 });
