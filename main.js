@@ -1,64 +1,48 @@
-import books from './books.js';
+import { books } from './books.js';
 
+const sermonText = document.getElementById('sermonText');
 const extractBtn = document.getElementById('extractBtn');
 const copyBtn = document.getElementById('copyBtn');
-const sermonText = document.getElementById('sermonText');
 const verseList = document.getElementById('verseList');
 const toast = document.getElementById('toast');
-
-// Create metadata display elements
-const titleDisplay = document.createElement('p');
-const temaDisplay = document.createElement('p');
-const dateDisplay = document.createElement('p');
-titleDisplay.style.display = 'none';
-temaDisplay.style.display = 'none';
-dateDisplay.style.display = 'none';
-
-// Insert metadata before verseList
-verseList.parentNode.insertBefore(titleDisplay, verseList);
-verseList.parentNode.insertBefore(temaDisplay, verseList);
-verseList.parentNode.insertBefore(dateDisplay, verseList);
+const titleDisplay = document.getElementById('titleDisplay');
+const temaDisplay = document.getElementById('temaDisplay');
+const dateDisplay = document.getElementById('dateDisplay');
 
 extractBtn.addEventListener('click', () => {
   const text = sermonText.value.trim();
   if (!text) return;
 
-  const metadata = extractMetadata(text);
-  const verses = extractVerses(text);
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const title = lines[0] || 'Sin título';
+  const tema = lines[1] || 'Sin tema';
 
-  // Clear previous list
-  verseList.innerHTML = '';
-
-  // Display metadata
-  const cleanedTema = metadata.tema.replace(/^tema[:\s]*/i, ''); // Remove duplicate "Tema:"
-  titleDisplay.textContent = metadata.title;
-  temaDisplay.textContent = cleanedTema;
-  dateDisplay.textContent = metadata.date;
-  titleDisplay.style.display = 'block';
-  temaDisplay.style.display = 'block';
-  dateDisplay.style.display = 'block';
-
-  // Populate verse list
-  verses.forEach(verse => {
-    const li = document.createElement('li');
-    li.textContent = verse;
-    verseList.appendChild(li);
+  const today = new Date();
+  const day = today.getDay();
+  const isSunday = day === 0;
+  const isWednesday = day === 3;
+  const dateStr = today.toLocaleDateString('es-MX', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  // Enable copy button if verses exist
+  // Display title, tema, and date
+  titleDisplay.textContent = title;
+  temaDisplay.textContent = tema;
+  dateDisplay.textContent = dateStr;
+
+  // Extract verses
+  const verses = extractVerses(text);
+  displayVerses(verses);
+
   copyBtn.disabled = verses.length === 0;
 });
 
 copyBtn.addEventListener('click', () => {
-  const title = titleDisplay.textContent;
-  const tema = temaDisplay.textContent;
-  const date = dateDisplay.textContent;
-
   const versesText = Array.from(verseList.children)
     .map(li => li.textContent)
     .join('\n');
 
-  const fullText = `${title}\n${tema}\n${date}\n\n${versesText}`;
+  const fullText = `${titleDisplay.textContent}\n${temaDisplay.textContent}\n${dateDisplay.textContent}\n\n${versesText}`;
 
   if (!versesText) return;
 
@@ -69,53 +53,37 @@ copyBtn.addEventListener('click', () => {
   });
 });
 
-// Toast display function
+function extractVerses(text) {
+  const abbreviations = Object.keys(books);
+  const bookRegex = new RegExp(
+    `\\b(${abbreviations.join('|')})\\.?\\s*\\d+[:.,]?\\s*\\d*`,
+    'gi'
+  );
+
+  const matches = text.match(bookRegex) || [];
+
+  const cleaned = matches.map(ref => {
+    const [abbr, rest] = ref.split(/(?<=\D)(?=\d)/); // Split between letters and digits
+    const fullBook = books[abbr.replace('.', '').trim()] || abbr;
+    return `${fullBook} ${rest.trim()}`;
+  });
+
+  return Array.from(new Set(cleaned)); // Remove duplicates
+}
+
+function displayVerses(verses) {
+  verseList.innerHTML = '';
+  verses.forEach(v => {
+    const li = document.createElement('li');
+    li.textContent = v;
+    verseList.appendChild(li);
+  });
+}
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
-}
-
-// Extract metadata: title, tema, date
-function extractMetadata(text) {
-  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
-  const title = lines[0] || 'Título no encontrado';
-  const temaCandidate = lines[1] || '';
-  const tema = temaCandidate.toLowerCase().includes('tema') ? temaCandidate : `Tema: ${temaCandidate}`;
-
-  const now = new Date();
-  const weekday = now.getDay(); // 0 = Sun, 3 = Wed
-  const isSunday = weekday === 0;
-  const isWednesday = weekday === 3;
-
-  let sermonDate = new Date(now);
-  if (!isSunday && !isWednesday) {
-    sermonDate.setDate(now.getDate() - 1); // fallback: use yesterday
-  }
-
-  const options = { year: 'numeric', month: 'long', day: 'numeric' };
-  const formattedDate = sermonDate.toLocaleDateString('es-MX', options);
-
-  return {
-    title,
-    tema,
-    date: `Fecha: ${formattedDate}`
-  };
-}
-
-// Extract verses using book list
-function extractVerses(text) {
-  const versePattern = new RegExp(
-    `\\b(${books.join('|')})\\s+(\\d+):(\\d+(?:[-,]\\d+)*)`,
-    'gi'
-  );
-
-  const found = [];
-  let match;
-  while ((match = versePattern.exec(text)) !== null) {
-    found.push(match[0]);
-  }
-  return found;
 }
