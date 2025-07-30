@@ -1,15 +1,31 @@
+// main.js
+
 import books from './books.js';
 
 const extractBtn = document.getElementById('extractBtn');
 const copyBtn = document.getElementById('copyBtn');
-const verseList = document.getElementById('verseList');
-const toast = document.getElementById('toast');
 const sermonText = document.getElementById('sermonText');
+const verseList = document.getElementById('verseList');
+
+const titleDisplay = document.getElementById('titleDisplay');
+const temaDisplay = document.getElementById('temaDisplay');
+const dateDisplay = document.getElementById('dateDisplay');
+const toast = document.getElementById('toast');
 
 extractBtn.addEventListener('click', () => {
-  const text = sermonText.value;
+  const text = sermonText.value.trim();
+  if (!text) {
+    showToast('Por favor, ingresa el texto del sermón.');
+    return;
+  }
+
   const metadata = extractMetadata(text);
   const verses = extractVerses(text);
+
+  // Show metadata
+  titleDisplay.textContent = metadata.title;
+  temaDisplay.textContent = metadata.tema;
+  dateDisplay.textContent = metadata.date;
 
   // Clear previous list
   verseList.innerHTML = '';
@@ -44,17 +60,7 @@ copyBtn.addEventListener('click', () => {
   });
 });
 
-// Toast display function
-function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add('show');
-
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 3000);
-}
-
-// Your existing metadata and verse extraction functions
+// Extract title, tema, and date
 function extractMetadata(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
   const title = lines[0] || 'Título no encontrado';
@@ -75,6 +81,7 @@ function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
+// Extract verses with book name and chapter:verse range
 function extractVerses(text) {
   const verseRegex = /(?:\(|\b)([1-3]?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
   const matches = new Set();
@@ -89,4 +96,14 @@ function extractVerses(text) {
   }
 
   return Array.from(matches);
+}
+
+// Show toast messages
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
 }
