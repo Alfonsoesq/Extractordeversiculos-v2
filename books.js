@@ -65,3 +65,6 @@ export const books = {
   'JUD': 'Judas', 'JUD.': 'Judas',
   'APOC': 'Apocalipsis', 'APOC.': 'Apocalipsis', 'AP': 'Apocalipsis', 'AP.': 'Apocalipsis'
 };
+
+export default books;
+
