@@ -10,6 +10,30 @@
     textarea { width: 100%; margin-bottom: 10px; }
     ul { list-style-type: none; padding: 0; }
     li { margin: 5px 0; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+
+    /* Toast styles */
+    #toast {
+      visibility: hidden;
+      min-width: 200px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      padding: 10px;
+      position: fixed;
+      z-index: 1;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      font-size: 16px;
+      opacity: 0;
+      transition: opacity 0.5s ease, visibility 0.5s;
+    }
+
+    #toast.show {
+      visibility: visible;
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -19,6 +43,9 @@
   <button id="copyBtn" disabled>Copiar Versículos</button>
   <h2>Versículos Extraídos</h2>
   <ul id="verseList"></ul>
+
+  <!-- Toast notification container -->
+  <div id="toast">Versículos copiados!</div>
 
   <!-- Load main.js as an ES module -->
   <script type="module" src="main.js"></script>
