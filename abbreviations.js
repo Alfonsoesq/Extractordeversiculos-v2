@@ -51,6 +51,7 @@ export const bookMap = {
   "MT": "Mateo",
   "MR": "Marcos",
   "LC": "Lucas",
+  "LC.": "Lucas",
   "JN": "Juan",
   "HEB": "Hebreos",
   "HE": "Hebreos",
