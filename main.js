@@ -1,9 +1,8 @@
-// main.js (V2)
-
 import books from './books.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   const extractButton = document.getElementById('extractBtn');
+  const copyButton = document.getElementById('copyBtn');
   const inputText = document.getElementById('sermonText');
   const outputArea = document.getElementById('verseList');
 
@@ -12,10 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const metadata = extractMetadata(text);
     const verses = extractVerses(text);
 
-    // Clear previous results
     outputArea.innerHTML = '';
 
-    // Show metadata as list items
+    // Add metadata
     const metaTitle = document.createElement('li');
     metaTitle.textContent = `Título: ${metadata.title}`;
     outputArea.appendChild(metaTitle);
@@ -32,13 +30,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const noVerses = document.createElement('li');
       noVerses.textContent = 'No se encontraron versículos.';
       outputArea.appendChild(noVerses);
+      copyButton.disabled = true;  // disable copy if no verses
     } else {
       for (const verse of verses) {
         const li = document.createElement('li');
         li.textContent = verse;
         outputArea.appendChild(li);
       }
+      copyButton.disabled = false;  // enable copy button
     }
+  });
+
+  copyButton.addEventListener('click', () => {
+    if (outputArea.children.length === 0) return;
+
+    // Prepare text to copy — join all <li> texts with new lines
+    const textToCopy = Array.from(outputArea.children)
+      .map(li => li.textContent)
+      .join('\n');
+
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        alert('Texto copiado al portapapeles');
+      })
+      .catch(() => {
+        alert('No se pudo copiar el texto');
+      });
   });
 });
 
