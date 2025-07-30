@@ -1,5 +1,4 @@
-// main.js
-import { books } from './books.js';
+import books from './books.js';
 
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn");
@@ -7,51 +6,45 @@ document.addEventListener("DOMContentLoaded", function () {
   const sermonText = document.getElementById("sermonText");
   const verseList = document.getElementById("verseList");
 
-  // Expand abbreviation to full book name
-  function expandAbbreviation(verse) {
-    // Match book abbreviation and chapter:verse
-    const match = verse.match(/([1-3]?\s?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)\s*(\d+:\d+)/i);
-    if (!match) return verse;
-
-    // Normalize abbreviation: uppercase and remove dots
-    let abbr = match[1].toUpperCase().replace(/\./g, '');
-    const numbers = match[2];
-
-    // Lookup in books dictionary
-    if (books[abbr]) {
-      return `${books[abbr]} ${numbers}`;
-    }
-    return verse;
-  }
-
-  // Extract verses from text
-  function extractVerses(text) {
-    // Regex to find all matches like: "Gen 1:1", "1 Sam 2:3", with optional dot in abbreviation
-    const regex = /\b[1-3]?\s?[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+\s\d+:\d+\b/gi;
-    const matches = text.match(regex) || [];
-    // Map and expand all abbreviations
-    return matches.map(expandAbbreviation);
-  }
+  // Regex to match book abbreviation + chapter + verses, including ranges and multiple verses
+  const verseRegex = /\b([1-3]?\s?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\.?)\s(\d+):(\d+(-\d+)?(,\s*\d+(-\d+)?)*)/g;
 
   extractBtn.addEventListener("click", () => {
     const input = sermonText.value;
-    const verses = extractVerses(input);
-
     verseList.innerHTML = "";
 
-    if (verses.length > 0) {
-      verses.forEach((verse) => {
-        const li = document.createElement("li");
-        li.textContent = verse;
-        verseList.appendChild(li);
-      });
-      copyBtn.disabled = false;
-    } else {
+    let matches = [];
+    let match;
+    while ((match = verseRegex.exec(input)) !== null) {
+      matches.push(match);
+    }
+
+    if (matches.length === 0) {
       const li = document.createElement("li");
       li.textContent = "No se encontraron versículos.";
       verseList.appendChild(li);
       copyBtn.disabled = true;
+      return;
     }
+
+    matches.forEach((match) => {
+      let bookAbbrev = match[1].trim().replace(/\.$/, ''); // remove trailing dot if any
+      const chapter = match[2];
+      const verses = match[3];
+
+      // Normalize abbreviation to uppercase without dots and spaces for lookup
+      const normalizedAbbrev = bookAbbrev.toUpperCase().replace(/\./g, '').replace(/\s/g, '');
+
+      // Find full book name, fallback to original if not found
+      const fullBookName = books[normalizedAbbrev] || bookAbbrev;
+
+      const fullVerse = `${fullBookName} ${chapter}:${verses}`;
+      const li = document.createElement("li");
+      li.textContent = fullVerse;
+      verseList.appendChild(li);
+    });
+
+    copyBtn.disabled = false;
   });
 
   copyBtn.addEventListener("click", () => {
