@@ -2,58 +2,94 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Extractor de Versículos V2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Extractor de Versículos</title>
+  <link rel="stylesheet" href="styles.css" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1, h2 { margin-bottom: 10px; }
-    textarea { width: 100%; margin-bottom: 10px; }
-    ul { list-style-type: none; padding: 0; }
-    li { margin: 5px 0; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      max-width: 700px;
+      margin: auto;
+      background-color: #f9f9f9;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      padding: 1rem;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 0.6rem 1rem;
+      margin-right: 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+    }
+
     #toast {
       visibility: hidden;
-      min-width: 200px;
-      margin-left: -100px;
+      min-width: 250px;
+      margin-left: -125px;
       background-color: #333;
       color: #fff;
       text-align: center;
-      border-radius: 4px;
-      padding: 10px;
+      border-radius: 6px;
+      padding: 1rem;
       position: fixed;
       z-index: 1;
       left: 50%;
       bottom: 30px;
-      font-size: 16px;
+      font-size: 1rem;
       opacity: 0;
-      transition: opacity 0.5s, visibility 0.5s;
+      transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s;
     }
+
     #toast.show {
       visibility: visible;
       opacity: 1;
-    }
-    #metadata p {
-      margin: 5px 0;
+      transition-delay: 0s;
     }
   </style>
 </head>
 <body>
-  <h1>Extractor de Versículos V2</h1>
-  <textarea id="sermonText" rows="10" placeholder="Escribe tu sermón aquí..."></textarea><br />
-  <button id="extractBtn">Extraer Versículos</button>
-  <button id="copyBtn" disabled>Copiar Versículos</button>
+  <h1>Extractor de Versículos</h1>
 
-  <div id="metadata">
-    <p><strong>Título:</strong> <span id="titleDisplay">-</span></p>
-    <p><strong>Tema:</strong> <span id="temaDisplay">-</span></p>
-    <p><strong>Fecha:</strong> <span id="dateDisplay">-</span></p>
+  <textarea id="sermonText" placeholder="Pega aquí el texto del mensaje..."></textarea>
+
+  <div>
+    <button id="extractBtn">Extraer Versículos</button>
+    <button id="copyBtn" disabled>Copiar</button>
   </div>
 
-  <h2>Versículos Extraídos</h2>
   <ul id="verseList"></ul>
 
   <div id="toast"></div>
 
-  <!-- Load main.js as an ES module -->
   <script type="module" src="main.js"></script>
 </body>
 </html>
