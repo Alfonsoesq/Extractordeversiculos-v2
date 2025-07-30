@@ -1,5 +1,4 @@
-// Import the array of valid books
-import { validBooks } from './abbreviations.js';
+import { bookMap } from './abbreviations.js';
 
 document.addEventListener("DOMContentLoaded", function () {
   const extractBtn = document.getElementById("extractBtn");
@@ -7,12 +6,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const sermonText = document.getElementById("sermonText");
   const verseList = document.getElementById("verseList");
 
-  // Create regex pattern from validBooks array
-  const validBooksPattern = validBooks
-    .map(book => book.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // Escape regex special chars
+  // Build regex pattern from keys of bookMap, escape regex chars
+  const validBooksPattern = Object.keys(bookMap)
+    .map(book => book.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
 
-  // Regex to match verses including ranges like 3:16-18 or 3:16–4:1
+  // Regex to match verses and verse ranges
   const verseRegex = new RegExp(
     `\\b(?:${validBooksPattern})\\s\\d{1,3}:\\d{1,3}(?:[-–]\\d{1,3}|[-–]\\d{1,3}:\\d{1,3})?\\b`,
     "g"
@@ -26,8 +25,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (matches && matches.length > 0) {
       matches.forEach((verse) => {
+        // Extract book abbreviation from start of verse string
+        const bookAbbrMatch = verse.match(/^[1-3]?\s?[A-ZÁÉÍÓÚÑ\.]+/i);
+        let fullBook = "";
+
+        if (bookAbbrMatch) {
+          // Normalize key to uppercase and remove dots for lookup
+          const abbrKey = bookAbbrMatch[0].toUpperCase().replace(/\./g, '');
+          fullBook = bookMap[abbrKey] || bookAbbrMatch[0];
+        }
+
+        // Replace abbreviation with full book name
+        const fullVerse = verse.replace(bookAbbrMatch[0], fullBook);
+
         const li = document.createElement("li");
-        li.textContent = verse;
+        li.textContent = fullVerse;
         verseList.appendChild(li);
       });
       copyBtn.disabled = false;
@@ -41,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   copyBtn.addEventListener("click", () => {
     const verses = Array.from(verseList.querySelectorAll("li"))
-      .map((li) => li.textContent)
+      .map(li => li.textContent)
       .join("\n");
 
     navigator.clipboard.writeText(verses).then(() => {
