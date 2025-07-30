@@ -1,17 +1,45 @@
-// V2 - main.js
+// main.js (V2)
 
 import books from './books.js';
 
-const extractButton = document.getElementById('extractButton');
-const inputText = document.getElementById('inputText');
-const outputArea = document.getElementById('outputArea');
+document.addEventListener('DOMContentLoaded', () => {
+  const extractButton = document.getElementById('extractBtn');
+  const inputText = document.getElementById('sermonText');
+  const outputArea = document.getElementById('verseList');
 
-extractButton.addEventListener('click', () => {
-  const text = inputText.value;
-  const metadata = extractMetadata(text);
-  const verses = extractVerses(text);
-  const formatted = formatOutput(metadata, verses);
-  outputArea.value = formatted || 'No se encontraron versículos.';
+  extractButton.addEventListener('click', () => {
+    const text = inputText.value;
+    const metadata = extractMetadata(text);
+    const verses = extractVerses(text);
+
+    // Clear previous results
+    outputArea.innerHTML = '';
+
+    // Show metadata as list items
+    const metaTitle = document.createElement('li');
+    metaTitle.textContent = `Título: ${metadata.title}`;
+    outputArea.appendChild(metaTitle);
+
+    const metaTema = document.createElement('li');
+    metaTema.textContent = `${metadata.tema}`;
+    outputArea.appendChild(metaTema);
+
+    const metaDate = document.createElement('li');
+    metaDate.textContent = `Fecha: ${metadata.date}`;
+    outputArea.appendChild(metaDate);
+
+    if (verses.length === 0) {
+      const noVerses = document.createElement('li');
+      noVerses.textContent = 'No se encontraron versículos.';
+      outputArea.appendChild(noVerses);
+    } else {
+      for (const verse of verses) {
+        const li = document.createElement('li');
+        li.textContent = verse;
+        outputArea.appendChild(li);
+      }
+    }
+  });
 });
 
 function extractMetadata(text) {
@@ -41,17 +69,11 @@ function extractVerses(text) {
   let match;
   while ((match = verseRegex.exec(text)) !== null) {
     let [_, abbr, chapter, verseStart, verseEnd] = match;
-    abbr = abbr.replace(/\.$/, '').toLowerCase();
-    const bookName = books[abbr] || abbr.toUpperCase();
+    abbr = abbr.replace(/\.$/, '').toUpperCase();
+    const bookName = books[abbr] || abbr;
     const range = verseEnd ? `${verseStart}-${verseEnd}` : verseStart;
     matches.add(`${bookName} ${chapter}:${range}`);
   }
 
   return Array.from(matches);
-}
-
-function formatOutput(metadata, verses) {
-  const { title, tema, date } = metadata;
-  const formattedVerses = verses.length > 0 ? verses.map(v => `- ${v}`).join('\n') : '';
-  return `Título: ${title}\n${tema}\nFecha: ${date}\n\nVersículos Extraídos:\n${formattedVerses}`;
 }
