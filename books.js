@@ -19,7 +19,7 @@ export const books = {
   'EST': 'Ester', 'EST.': 'Ester',
   'JOB': 'Job', 'JOB.': 'Job',
   'SAL': 'Salmos', 'SAL.': 'Salmos',
-  'PRO': 'Proverbios', 'PRO.': 'Proverbios', 'PR.': 'Proverbios',
+  'PRO': 'Proverbios', 'PRO.': 'Proverbios', 'PR': 'Proverbios', 'PR.': 'Proverbios',
   'ECL': 'Eclesiastés', 'ECL.': 'Eclesiastés',
   'CANT': 'Cantar de los Cantares', 'CANT.': 'Cantar de los Cantares',
   'ISA': 'Isaías', 'ISA.': 'Isaías', 'IS': 'Isaías', 'IS.': 'Isaías',
