@@ -6,15 +6,24 @@ document.addEventListener("DOMContentLoaded", function () {
   const sermonText = document.getElementById("sermonText");
   const verseList = document.getElementById("verseList");
 
-  // Build regex pattern from keys of bookMap, escape regex chars
-  const validBooksPattern = Object.keys(bookMap)
-    .map(book => book.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|");
+  // Escape special regex chars in string
+  function escapeForRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
-  // Regex to match verses and verse ranges
+  // Build regex pattern allowing optional spaces/dots
+  const bookKeys = Object.keys(bookMap).map(key =>
+    escapeForRegex(key)
+      .replace(/\s+/g, '\\s?')
+      .replace(/\./g, '\\.?')
+  );
+
+  const validBooksPattern = bookKeys.join('|');
+
+  // Match verses, allowing optional ranges like 1:1-2 or 1:1-2:3
   const verseRegex = new RegExp(
-    `\\b(?:${validBooksPattern})\\s\\d{1,3}:\\d{1,3}(?:[-–]\\d{1,3}|[-–]\\d{1,3}:\\d{1,3})?\\b`,
-    "g"
+    `\\b(?:${validBooksPattern})\\s\\d{1,3}:\\d{1,3}(?:[-–]\\d{1,3}(?::\\d{1,3})?)?\\b`,
+    'gi'  // global + case insensitive
   );
 
   extractBtn.addEventListener("click", () => {
@@ -25,23 +34,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (matches && matches.length > 0) {
       matches.forEach((verse) => {
-        // Extract book abbreviation from start of verse string
+        // Extract abbreviation at start of verse
         const bookAbbrMatch = verse.match(/^[1-3]?\s?[A-ZÁÉÍÓÚÑ\.]+/i);
-        let fullBook = "";
 
+        let fullBook = "";
         if (bookAbbrMatch) {
-          // Normalize key to uppercase and remove dots for lookup
-          const abbrKey = bookAbbrMatch[0].toUpperCase().replace(/\./g, '');
+          // Normalize key: uppercase + remove spaces/dots for lookup
+          const abbrKey = bookAbbrMatch[0].toUpperCase().replace(/[\s\.]/g, '');
           fullBook = bookMap[abbrKey] || bookAbbrMatch[0];
         }
 
-        // Replace abbreviation with full book name
+        // Replace abbreviation in verse with full book name
         const fullVerse = verse.replace(bookAbbrMatch[0], fullBook);
 
         const li = document.createElement("li");
         li.textContent = fullVerse;
         verseList.appendChild(li);
       });
+
       copyBtn.disabled = false;
     } else {
       const li = document.createElement("li");
