@@ -1,66 +1,157 @@
-// main.js
+// main.js (V2 updated for better UI & meta display)
 
-import { books } from './books.js';
+import books from './books.js';
 
-document.getElementById('processBtn').addEventListener('click', () => {
-  const rawText = document.getElementById('inputText').value;
-  const resultBox = document.getElementById('resultBox');
-  const dateBox = document.getElementById('dateBox');
-  const titleBox = document.getElementById('titleBox');
-  const themeBox = document.getElementById('themeBox');
+const extractBtn = document.getElementById('extractBtn');
+const copyBtn = document.getElementById('copyBtn');
+const sermonText = document.getElementById('sermonText');
+const verseList = document.getElementById('verseList');
+const metaContainer = document.getElementById('metaContainer');
+const toast = document.getElementById('toast');
 
-  const lines = rawText.trim().split('\n').filter(line => line.trim() !== '');
-  const title = lines[0] || '';
-  const theme = lines[1] || '';
+// Initially disable copy button
+copyBtn.disabled = true;
 
-  // Attempt to detect the sermon date
-  const now = new Date();
-  const day = now.getDay(); // 0 (Sun) to 6 (Sat)
-  const isSunday = day === 0;
-  const isWednesday = day === 3;
+extractBtn.addEventListener('click', () => {
+  const text = sermonText.value.trim();
 
-  // Try using today's date or yesterday's if it's Monday or Thursday
-  let sermonDate = new Date();
-  if (day === 1 || day === 4) {
-    sermonDate.setDate(now.getDate() - 1);
+  if (!text) {
+    showToast('Por favor escribe el sermón primero.');
+    return;
   }
 
-  const formattedDate = sermonDate.toISOString().split('T')[0];
+  // Extract metadata & verses
+  const metadata = extractMetadata(text);
+  const verses = extractVerses(text);
 
-  titleBox.innerText = `Título: ${title}`;
-  themeBox.innerText = `Tema: ${theme}`;
-  dateBox.innerText = `Fecha: ${formattedDate}`;
+  // Show metadata (title, tema, date) nicely in metaContainer
+  showMetadata(metadata);
 
-  const verses = extractVerses(rawText);
-  const formatted = verses.map(v => `${v.book} ${v.reference}`).join('\n');
-  resultBox.innerText = formatted || 'No se encontraron versículos válidos.';
+  // Show verses in list
+  displayVerses(verses);
+
+  // Enable or disable copy button based on verses found
+  copyBtn.disabled = verses.length === 0;
+
+  if (verses.length === 0) {
+    showToast('No se encontraron versículos.');
+  }
 });
 
-function extractVerses(text) {
-  const verses = [];
+copyBtn.addEventListener('click', () => {
+  // Compose full text to copy: meta + verses
+  const metaText = metaContainer.textContent.trim();
+  const versesText = Array.from(verseList.children)
+    .map(li => li.textContent)
+    .join('\n');
 
-  // Normalize quotes and trim
-  const cleanedText = text.replace(/[“”‘’]/g, '"').trim();
+  if (!versesText) {
+    showToast('No hay versículos para copiar.');
+    return;
+  }
 
-  books.forEach(book => {
-    book.abbreviations.forEach(abbr => {
-      // Match examples like: Juan 3:16 or Jn 3:16
-      const regex = new RegExp(`\\b${abbr}\\s+\\d+:\\d+\\b`, 'gi');
-      const matches = cleanedText.match(regex);
+  const fullText = `${metaText}\n\nVersículos Extraídos:\n${versesText}`;
 
-      if (matches) {
-        matches.forEach(match => {
-          // Remove abbreviation from match to isolate chapter:verse
-          const reference = match.replace(new RegExp(`^${abbr}\\s+`, 'i'), '');
-          verses.push({
-            original: match,
-            book: book.name,
-            reference: reference
-          });
-        });
-      }
-    });
+  navigator.clipboard.writeText(fullText).then(() => {
+    showToast('Versículos y metadata copiados!');
+  }).catch(() => {
+    showToast('Error al copiar, intenta manualmente.');
   });
+});
 
-  return verses;
+// Extract title, tema, date from sermon text
+function extractMetadata(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+
+  const title = lines[0] || 'Título no encontrado';
+
+  let tema = 'Tema no encontrado';
+  for (const line of lines.slice(1)) {
+    if (line.toLowerCase().startsWith('tema')) {
+      // Remove "Tema:" prefix if exists, trim spaces
+      tema = line.replace(/^tema\s*:?\s*/i, '');
+      break;
+    }
+  }
+
+  const today = new Date();
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const formattedDate = `${days[today.getDay()]} ${today.getDate()} de ${months[today.getMonth()]}, ${today.getFullYear()}`;
+
+  return { title, tema, date: formattedDate };
+}
+
+// Extract verse references with improved regex and book abbreviation mapping
+function extractVerses(text) {
+  // Regex explanation:
+  // Matches optional opening "(" or word boundary
+  // Then book abbreviation (including 1,2,3 prefix)
+  // Then optional dot or spaces
+  // Then chapter number
+  // Then optional :verse or verse range (e.g. 1:1-32)
+  // Stops before closing ")" or word boundary
+  const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
+
+  const matches = new Set();
+
+  let match;
+  while ((match = verseRegex.exec(text)) !== null) {
+    let [_, abbr, chapter, verseStart, verseEnd] = match;
+
+    // Normalize abbreviation, remove spaces & dots, uppercase for matching keys
+    abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+
+    // Lookup full book name
+    const bookName = books[abbr] || abbr;
+
+    const range = verseEnd ? `${verseStart}-${verseEnd}` : verseStart || '';
+
+    // Format like: "Lucas 15:1-32" or "Hebreos 1"
+    const formattedVerse = range ? `${bookName} ${chapter}:${range}` : `${bookName} ${chapter}`;
+
+    matches.add(formattedVerse);
+  }
+
+  return Array.from(matches);
+}
+
+// Show metadata in metaContainer with fade-in
+function showMetadata({ title, tema, date }) {
+  metaContainer.style.opacity = 0;
+  metaContainer.style.display = 'block';
+  metaContainer.innerHTML = `
+    <p><strong>Título:</strong> ${title}</p>
+    <p><strong>Tema:</strong> ${tema}</p>
+    <p><strong>Fecha:</strong> ${date}</p>
+  `;
+
+  // Animate fade in
+  setTimeout(() => {
+    metaContainer.style.transition = 'opacity 0.4s ease';
+    metaContainer.style.opacity = 1;
+  }, 20);
+}
+
+// Display verses in the verseList as <li>
+function displayVerses(verses) {
+  verseList.innerHTML = '';
+
+  if (verses.length === 0) return;
+
+  verses.forEach(v => {
+    const li = document.createElement('li');
+    li.textContent = v;
+    verseList.appendChild(li);
+  });
+}
+
+// Show toast notifications with fade in/out
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
 }
