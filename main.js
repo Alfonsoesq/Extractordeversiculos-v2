@@ -1,4 +1,4 @@
-// main.js (V2 updated for better UI & meta display)
+// main.js (V2.1 with Bible book filtering and UI enhancements)
 
 import books from './books.js';
 
@@ -7,9 +7,6 @@ const copyBtn = document.getElementById('copyBtn');
 const sermonText = document.getElementById('sermonText');
 const verseList = document.getElementById('verseList');
 const metaContainer = document.getElementById('metaContainer');
-const metadataTitle = document.getElementById('metadataTitle');
-const metadataTema = document.getElementById('metadataTema');
-const metadataDate = document.getElementById('metadataDate');
 const toast = document.getElementById('toast');
 
 // Initially disable copy button
@@ -43,10 +40,7 @@ extractBtn.addEventListener('click', () => {
 
 copyBtn.addEventListener('click', () => {
   // Compose full text to copy: meta + verses
-  const metaText = `Título: ${metadataTitle.textContent}
-Tema: ${metadataTema.textContent}
-Fecha: ${metadataDate.textContent}`;
-
+  const metaText = metaContainer.textContent.trim();
   const versesText = Array.from(verseList.children)
     .map(li => li.textContent)
     .join('\n');
@@ -88,15 +82,8 @@ function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
-// Extract verse references with improved regex and book abbreviation mapping
+// Extract verse references with filtering to only known Bible books
 function extractVerses(text) {
-  // Regex explanation:
-  // Matches optional opening "(" or word boundary
-  // Then book abbreviation (including 1,2,3 prefix)
-  // Then optional dot or spaces
-  // Then chapter number
-  // Then optional :verse or verse range (e.g. 1:1-32)
-  // Stops before closing ")" or word boundary
   const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
 
   const matches = new Set();
@@ -105,15 +92,15 @@ function extractVerses(text) {
   while ((match = verseRegex.exec(text)) !== null) {
     let [_, abbr, chapter, verseStart, verseEnd] = match;
 
-    // Normalize abbreviation, remove spaces & dots, uppercase for matching keys
+    // Normalize abbreviation, remove dots & spaces, uppercase for key lookup
     abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
 
-    // Lookup full book name
-    const bookName = books[abbr] || abbr;
+    // Lookup full book name - skip if not found to avoid false positives
+    const bookName = books[abbr];
+    if (!bookName) continue;
 
     const range = verseEnd ? `${verseStart}-${verseEnd}` : verseStart || '';
 
-    // Format like: "Lucas 15:1-32" or "Hebreos 1"
     const formattedVerse = range ? `${bookName} ${chapter}:${range}` : `${bookName} ${chapter}`;
 
     matches.add(formattedVerse);
@@ -124,14 +111,14 @@ function extractVerses(text) {
 
 // Show metadata in metaContainer with fade-in
 function showMetadata({ title, tema, date }) {
-  metadataTitle.textContent = title;
-  metadataTema.textContent = tema;
-  metadataDate.textContent = date;
-
   metaContainer.style.opacity = 0;
   metaContainer.style.display = 'block';
+  metaContainer.innerHTML = `
+    <p><strong>Título:</strong> ${title}</p>
+    <p><strong>Tema:</strong> ${tema}</p>
+    <p><strong>Fecha:</strong> ${date}</p>
+  `;
 
-  // Animate fade in
   setTimeout(() => {
     metaContainer.style.transition = 'opacity 0.4s ease';
     metaContainer.style.opacity = 1;
