@@ -1,4 +1,4 @@
-// main.js (V2.1 with Bible book filtering and UI enhancements)
+// main.js (V2.1.1 – Allows duplicate verses, Bible book filtering, and UI enhancements)
 
 import books from './books.js';
 
@@ -82,11 +82,11 @@ function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
-// Extract verse references with filtering to only known Bible books
+// Extract verse references with filtering and duplicates allowed
 function extractVerses(text) {
   const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
 
-  const matches = new Set();
+  const matches = [];
 
   let match;
   while ((match = verseRegex.exec(text)) !== null) {
@@ -103,10 +103,10 @@ function extractVerses(text) {
 
     const formattedVerse = range ? `${bookName} ${chapter}:${range}` : `${bookName} ${chapter}`;
 
-    matches.add(formattedVerse);
+    matches.push(formattedVerse); // allow duplicates
   }
 
-  return Array.from(matches);
+  return matches;
 }
 
 // Show metadata in metaContainer with fade-in
