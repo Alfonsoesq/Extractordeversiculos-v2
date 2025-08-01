@@ -1,4 +1,4 @@
-// main.js (V2.2.2 – Updated: Proper Verse Range Detection with Book/Chapter Memory)
+// main.js (V2.2.2 – Smart Verse Range Detection)
 
 import books from './books.js';
 
@@ -68,101 +68,51 @@ function extractMetadata(text) {
 }
 
 function extractVerses(text) {
+  const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*(\d{1,3})(?::(\d{1,3}))?(?=\)|\b)/g;
   const matches = [];
-  let lastBook = null;
-  let lastChapter = null;
-
-  const referenceRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*(\d{1,3})(?::(\d{1,3}))?(?=\)|\b)/g;
   let match;
 
-  while ((match = referenceRegex.exec(text)) !== null) {
-    let [_, abbr, chapterStr, verseStr] = match;
+  while ((match = verseRegex.exec(text)) !== null) {
+    let [fullMatch, abbr, chapter, verseStartStr] = match;
     abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
     const bookName = books[abbr];
     if (!bookName) continue;
 
-    const chapter = parseInt(chapterStr);
-    const verse = verseStr ? parseInt(verseStr) : null;
+    const chapterNum = parseInt(chapter, 10);
+    const verseStart = verseStartStr ? parseInt(verseStartStr, 10) : null;
 
-    lastBook = bookName;
-    lastChapter = chapter;
-
-    if (verse === null) {
-      matches.push(`${bookName} ${chapter}`);
-    } else {
-      matches.push(`${bookName} ${chapter}:${verse}`);
-
-      // Check for continuing verses right after this one
-      const after = text.slice(referenceRegex.lastIndex, referenceRegex.lastIndex + 500);
-      const extraVerses = [...after.matchAll(/\b(\d{1,3})(?=\D)/g)].map(m => parseInt(m[1])).filter(n => !isNaN(n));
-
-      let rangeEnd = verse;
-      for (const num of extraVerses) {
-        if (num === rangeEnd + 1) {
-          rangeEnd = num;
-        } else if (num > rangeEnd + 1) {
-          break;
-        }
-      }
-      if (rangeEnd > verse) {
-        matches.pop();
-        matches.push(`${bookName} ${chapter}:${verse}-${rangeEnd}`);
-      }
-    }
-  }
-
-  // Orphan detection (like "53, 54")
-  const orphanRegex = /(?:\s|^)(\d{1,3})(?=\D)/g;
-  let orphan;
-  while ((orphan = orphanRegex.exec(text)) !== null) {
-    const num = parseInt(orphan[1]);
-    if (lastBook && lastChapter && !matches.some(m => m.includes(`:${num}`))) {
-      matches.push(`${lastBook} ${lastChapter}:${num}`);
-    }
-  }
-
-  return mergeRanges(matches);
-}
-
-function mergeRanges(refs) {
-  const byBook = {};
-
-  for (const ref of refs) {
-    const [bookChap, verses] = ref.split(':');
-    if (!verses) {
-      if (!byBook[bookChap]) byBook[bookChap] = new Set();
+    if (!verseStart) {
+      matches.push(`${bookName} ${chapterNum}`);
       continue;
     }
-    const [start, end] = verses.split('-').map(Number);
-    if (!byBook[bookChap]) byBook[bookChap] = new Set();
 
-    if (!isNaN(end)) {
-      for (let i = start; i <= end; i++) byBook[bookChap].add(i);
-    } else {
-      byBook[bookChap].add(start);
-    }
-  }
+    let rangeEnd = verseStart;
+    let searchPos = verseRegex.lastIndex;
 
-  const result = [];
-  for (const bookChap in byBook) {
-    const verses = [...byBook[bookChap]].sort((a, b) => a - b);
-    let rangeStart = verses[0];
-    let prev = verses[0];
+    const verseArea = text.slice(searchPos, searchPos + 600);
+    const numRegex = /(?:\b|\s)(\d{1,3})(?=\D)/g;
 
-    for (let i = 1; i <= verses.length; i++) {
-      if (verses[i] !== prev + 1) {
-        if (rangeStart === prev) {
-          result.push(`${bookChap}:${rangeStart}`);
-        } else {
-          result.push(`${bookChap}:${rangeStart}-${prev}`);
-        }
-        rangeStart = verses[i];
+    let localMatch;
+    while ((localMatch = numRegex.exec(verseArea)) !== null) {
+      const num = parseInt(localMatch[1]);
+
+      if (num === rangeEnd + 1) {
+        rangeEnd = num;
+      } else if (num <= rangeEnd) {
+        continue;
+      } else {
+        break;
       }
-      prev = verses[i];
+    }
+
+    if (rangeEnd > verseStart) {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}-${rangeEnd}`);
+    } else {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}`);
     }
   }
 
-  return result;
+  return matches;
 }
 
 function showMetadata({ title, tema, date }) {
