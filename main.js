@@ -1,4 +1,4 @@
-// main.js (V2.2.2 – Smart Verse Range Detection)
+// main.js (V2.2.2 – Improved Non-Consecutive Verse Grouping)
 
 import books from './books.js';
 
@@ -81,35 +81,62 @@ function extractVerses(text) {
     const chapterNum = parseInt(chapter, 10);
     const verseStart = verseStartStr ? parseInt(verseStartStr, 10) : null;
 
+    // If only chapter is referenced
     if (!verseStart) {
       matches.push(`${bookName} ${chapterNum}`);
       continue;
     }
 
+    const verseNumbers = [verseStart];
     let rangeEnd = verseStart;
     let searchPos = verseRegex.lastIndex;
-
     const verseArea = text.slice(searchPos, searchPos + 600);
-    const numRegex = /(?:\b|\s)(\d{1,3})(?=\D)/g;
 
+    const numRegex = /(?:\b|\s)(\d{1,3})(?=\D)/g;
     let localMatch;
+    const foundNumbers = [];
+
     while ((localMatch = numRegex.exec(verseArea)) !== null) {
       const num = parseInt(localMatch[1]);
-
-      if (num === rangeEnd + 1) {
-        rangeEnd = num;
-      } else if (num <= rangeEnd) {
-        continue;
-      } else {
-        break;
+      if (!foundNumbers.includes(num) && num > verseStart && num < 180) {
+        foundNumbers.push(num);
       }
     }
 
-    if (rangeEnd > verseStart) {
-      matches.push(`${bookName} ${chapterNum}:${verseStart}-${rangeEnd}`);
-    } else {
-      matches.push(`${bookName} ${chapterNum}:${verseStart}`);
+    foundNumbers.sort((a, b) => a - b);
+
+    // Group consecutive numbers into ranges
+    const ranges = [];
+    let currentStart = null;
+    let currentEnd = null;
+
+    for (const num of foundNumbers) {
+      if (currentStart === null) {
+        currentStart = num;
+        currentEnd = num;
+      } else if (num === currentEnd + 1) {
+        currentEnd = num;
+      } else {
+        ranges.push([currentStart, currentEnd]);
+        currentStart = num;
+        currentEnd = num;
+      }
     }
+
+    if (currentStart !== null) {
+      ranges.push([currentStart, currentEnd]);
+    }
+
+    // Format result
+    let result = `${bookName} ${chapterNum}:${verseStart}`;
+    if (ranges.length > 0) {
+      const formatted = ranges
+        .map(([start, end]) => (start === end ? `${start}` : `${start}-${end}`))
+        .join(', ');
+      result += `, ${formatted}`;
+    }
+
+    matches.push(result);
   }
 
   return matches;
