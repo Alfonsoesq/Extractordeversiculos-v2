@@ -1,4 +1,4 @@
-// main.js (V2.2.2 – Improved Non-Consecutive Verse Grouping)
+// main.js (V2.2.2 – Smart Verse Range Detection with Book/Chapter Memory)
 
 import books from './books.js';
 
@@ -72,6 +72,9 @@ function extractVerses(text) {
   const matches = [];
   let match;
 
+  let lastBook = null;
+  let lastChapter = null;
+
   while ((match = verseRegex.exec(text)) !== null) {
     let [fullMatch, abbr, chapter, verseStartStr] = match;
     abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
@@ -81,65 +84,96 @@ function extractVerses(text) {
     const chapterNum = parseInt(chapter, 10);
     const verseStart = verseStartStr ? parseInt(verseStartStr, 10) : null;
 
-    // If only chapter is referenced
+    // update memory
+    lastBook = bookName;
+    lastChapter = chapterNum;
+
     if (!verseStart) {
       matches.push(`${bookName} ${chapterNum}`);
       continue;
     }
 
-    const verseNumbers = [verseStart];
     let rangeEnd = verseStart;
     let searchPos = verseRegex.lastIndex;
+
+    // Look ahead for standalone numbers that might be continuing this chapter
     const verseArea = text.slice(searchPos, searchPos + 600);
-
     const numRegex = /(?:\b|\s)(\d{1,3})(?=\D)/g;
-    let localMatch;
-    const foundNumbers = [];
 
+    let localMatch;
     while ((localMatch = numRegex.exec(verseArea)) !== null) {
       const num = parseInt(localMatch[1]);
-      if (!foundNumbers.includes(num) && num > verseStart && num < 180) {
-        foundNumbers.push(num);
-      }
-    }
 
-    foundNumbers.sort((a, b) => a - b);
-
-    // Group consecutive numbers into ranges
-    const ranges = [];
-    let currentStart = null;
-    let currentEnd = null;
-
-    for (const num of foundNumbers) {
-      if (currentStart === null) {
-        currentStart = num;
-        currentEnd = num;
-      } else if (num === currentEnd + 1) {
-        currentEnd = num;
+      if (num === rangeEnd + 1) {
+        rangeEnd = num;
+      } else if (num <= rangeEnd) {
+        continue;
       } else {
-        ranges.push([currentStart, currentEnd]);
-        currentStart = num;
-        currentEnd = num;
+        break;
       }
     }
 
-    if (currentStart !== null) {
-      ranges.push([currentStart, currentEnd]);
+    if (rangeEnd > verseStart) {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}-${rangeEnd}`);
+    } else {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}`);
     }
-
-    // Format result
-    let result = `${bookName} ${chapterNum}:${verseStart}`;
-    if (ranges.length > 0) {
-      const formatted = ranges
-        .map(([start, end]) => (start === end ? `${start}` : `${start}-${end}`))
-        .join(', ');
-      result += `, ${formatted}`;
-    }
-
-    matches.push(result);
   }
 
-  return matches;
+  // Second pass: catch orphan verse numbers (like “53, 54, 55”) 
+  const orphanNumRegex = /(?:\s|^)(\d{1,3})(?=\D)/g;
+  let orphanMatch;
+  while ((orphanMatch = orphanNumRegex.exec(text)) !== null) {
+    const verseNum = parseInt(orphanMatch[1]);
+    if (lastBook && lastChapter && verseNum > 1) {
+      const ref = `${lastBook} ${lastChapter}:${verseNum}`;
+      if (!matches.some(m => m.includes(`${lastBook} ${lastChapter}:${verseNum}`))) {
+        matches.push(ref);
+      }
+    }
+  }
+
+  // Merge consecutive verses into ranges where possible
+  return mergeRanges(matches);
+}
+
+function mergeRanges(refs) {
+  const merged = [];
+  let lastRef = null;
+
+  const parseRef = ref => {
+    const [bookChap, verses] = ref.split(':');
+    if (!verses) return { bookChap, start: null, end: null };
+    if (verses.includes('-')) {
+      const [s, e] = verses.split('-').map(Number);
+      return { bookChap, start: s, end: e };
+    }
+    return { bookChap, start: Number(verses), end: Number(verses) };
+  };
+
+  for (const ref of refs) {
+    if (!lastRef) {
+      lastRef = parseRef(ref);
+      continue;
+    }
+    const cur = parseRef(ref);
+
+    if (cur.bookChap === lastRef.bookChap && cur.start === lastRef.end + 1) {
+      lastRef.end = cur.end;
+    } else {
+      merged.push(formatRef(lastRef));
+      lastRef = cur;
+    }
+  }
+  if (lastRef) merged.push(formatRef(lastRef));
+
+  return merged;
+}
+
+function formatRef(ref) {
+  if (ref.start === null) return ref.bookChap;
+  if (ref.start === ref.end) return `${ref.bookChap}:${ref.start}`;
+  return `${ref.bookChap}:${ref.start}-${ref.end}`;
 }
 
 function showMetadata({ title, tema, date }) {
