@@ -1,4 +1,4 @@
-// main.js (V2.1.1 – Allows duplicate verses, Bible book filtering, and UI enhancements)
+// main.js (V2.2 – Allows duplicate verses, Bible book filtering, UI enhancements, and verse range detection)
 
 import books from './books.js';
 
@@ -82,7 +82,7 @@ function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
-// Extract verse references with filtering and duplicates allowed
+// Extract verse references with filtering, duplicates allowed, and expanded verse ranges
 function extractVerses(text) {
   const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
 
@@ -90,20 +90,70 @@ function extractVerses(text) {
 
   let match;
   while ((match = verseRegex.exec(text)) !== null) {
-    let [_, abbr, chapter, verseStart, verseEnd] = match;
+    let [fullMatch, abbr, chapter, verseStart, verseEnd] = match;
 
     // Normalize abbreviation, remove dots & spaces, uppercase for key lookup
-    abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+    const abbrKey = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
 
     // Lookup full book name - skip if not found to avoid false positives
-    const bookName = books[abbr];
+    const bookName = books[abbrKey];
     if (!bookName) continue;
 
-    const range = verseEnd ? `${verseStart}-${verseEnd}` : verseStart || '';
+    // Determine the position right after this match in the text to look ahead for verses
+    const afterMatchIndex = verseRegex.lastIndex;
+
+    // Prepare to find continuous verses if verseEnd is not specified (i.e., no explicit range)
+    let rangeEnd = verseEnd ? Number(verseEnd) : null;
+    const startVerseNum = verseStart ? Number(verseStart) : null;
+
+    if (!rangeEnd && startVerseNum !== null) {
+      // Look ahead in text to find following verses for this same book and chapter
+      // Extract text after current match up to next verse reference or end of text
+      const textAfter = text.slice(afterMatchIndex);
+
+      // Match possible verse numbers at start of lines or after spaces
+      // Only accept numbers that:
+      // 1) appear at start of lines or after line breaks
+      // 2) are NOT part of a new book name (avoid letters after number)
+      // We'll match numbers like "2", "3", ... that might indicate following verses
+
+      // Regex to find verse numbers at start of lines or after whitespace:
+      // Matches lines starting with number optionally followed by punctuation and space
+      const verseNumberRegex = /^(\d+)(?=[\s\.\,\:\-])/gm;
+
+      // Find all matches to verseNumberRegex in textAfter
+      const verseNumbers = [];
+      let vnMatch;
+      while ((vnMatch = verseNumberRegex.exec(textAfter)) !== null) {
+        const candidateVerse = Number(vnMatch[1]);
+
+        // If candidateVerse is exactly one greater than previous or startVerseNum,
+        // or consecutive, include it; else break (stop at first gap)
+        if (verseNumbers.length === 0) {
+          if (candidateVerse === startVerseNum + 1) {
+            verseNumbers.push(candidateVerse);
+          } else {
+            break; // no consecutive verses after startVerseNum
+          }
+        } else {
+          if (candidateVerse === verseNumbers[verseNumbers.length - 1] + 1) {
+            verseNumbers.push(candidateVerse);
+          } else {
+            break; // break on first non-consecutive
+          }
+        }
+      }
+
+      if (verseNumbers.length > 0) {
+        rangeEnd = verseNumbers[verseNumbers.length - 1];
+      }
+    }
+
+    const range = rangeEnd ? `${startVerseNum}-${rangeEnd}` : startVerseNum !== null ? `${startVerseNum}` : '';
 
     const formattedVerse = range ? `${bookName} ${chapter}:${range}` : `${bookName} ${chapter}`;
 
-    matches.push(formattedVerse); // allow duplicates
+    matches.push(formattedVerse);
   }
 
   return matches;
