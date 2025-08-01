@@ -56,7 +56,7 @@ export const books = {
   'COL': 'Colosenses', 'COL.': 'Colosenses',
   '1 TES': '1 Tesalonicenses', '1 TES.': '1 Tesalonicenses', '1TES.': '1 Tesalonicenses',
   '2 TES': '2 Tesalonicenses', '2 TES.': '2 Tesalonicenses',
-  '1 TIM': '1 Timoteo', '1 TIM.': '1 Timoteo',
+  '1 TIM': '1 Timoteo', '1 TIM.': '1 Timoteo', '1TIM': '1 Timoteo', '1TIM.': '1 Timoteo', 
   '2 TIM': '2 Timoteo', '2 TIM.': '2 Timoteo', '2TIM.': '2 Timoteo',
   'TIT': 'Tito', 'TIT.': 'Tito',
   '1 JUAN': '1 Juan', '1 JUAN.': '1 Juan', '1JN': '1 Juan', '1JN.': '1 Juan',
