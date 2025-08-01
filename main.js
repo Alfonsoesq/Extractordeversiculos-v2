@@ -1,4 +1,4 @@
-// main.js (V2.2.1 – Smarter verse range detection, allows single-verse extension)
+// main.js (V2.2.1 – Allows duplicate verses, Bible book filtering, UI enhancements, and improved verse range extraction)
 
 import books from './books.js';
 
@@ -82,72 +82,72 @@ function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
-// Extract verse references with smarter range detection
+// Extract verse references with filtering, duplicates allowed, and extended verse ranges scanning
 function extractVerses(text) {
-  const lines = text.split(/\r?\n/);
-  const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3})(?:-([0-9]{1,3}))?)?(?=\)|\b)/g;
+  const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*([0-9]{1,3})(?::([0-9]{1,3}))?(?=\)|\b)/g;
 
-  const results = [];
+  const matches = [];
 
-  // Normalize books keys for quick lookup
-  const bookKeys = Object.keys(books);
+  let match;
+  while ((match = verseRegex.exec(text)) !== null) {
+    let [fullMatch, abbr, chapter, verseStartStr] = match;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    let match;
-    while ((match = verseRegex.exec(line)) !== null) {
-      let [fullMatch, abbr, chapter, verseStart, verseEnd] = match;
+    // Normalize abbreviation, remove dots & spaces, uppercase for key lookup
+    abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+    const bookName = books[abbr];
+    if (!bookName) continue;
 
-      abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+    const chapterNum = parseInt(chapter, 10);
+    const verseStart = verseStartStr ? parseInt(verseStartStr, 10) : null;
 
-      // Lookup full book name
-      const bookName = books[abbr];
-      if (!bookName) continue;
+    // If no verse number (only chapter), just add chapter reference
+    if (!verseStart) {
+      matches.push(`${bookName} ${chapterNum}`);
+      continue;
+    }
 
-      // If there is already a verseEnd from regex (e.g., 1:1-3), just use that
-      if (verseEnd) {
-        results.push(`${bookName} ${chapter}:${verseStart}-${verseEnd}`);
-        continue;
-      }
+    // Starting index in text for scanning next verses
+    let rangeEnd = verseStart;
 
-      // If no verseStart, treat as chapter only
-      if (!verseStart) {
-        results.push(`${bookName} ${chapter}`);
-        continue;
-      }
+    // Position after this match in text
+    let searchPos = verseRegex.lastIndex;
 
-      // Now: check next lines for explicit verse numbers continuing chapter
-      let lastVerse = parseInt(verseStart, 10);
+    // Regex to find verse numbers that may follow, like: " 20 ", " 21.", " 22,", etc.
+    // It should NOT match a new book reference, so exclude letters
+    const nextVerseRegex = /(?:^|[\s\.,;])(\d{1,3})(?=\D)/g; 
 
-      for (let j = i + 1; j < lines.length; j++) {
-        const nextLine = lines[j].trim();
-        if (!nextLine) continue;
+    nextVerseRegex.lastIndex = searchPos;
 
-        // Check if next line starts with a number (verse number)
-        const verseNumMatch = nextLine.match(/^(\d{1,3})\b/);
-        if (!verseNumMatch) break; // no verse number starting next line → stop looking
+    while (true) {
+      const nextMatch = nextVerseRegex.exec(text);
+      if (!nextMatch) break;
 
-        const nextVerseNum = parseInt(verseNumMatch[1], 10);
+      const nextVerseNum = parseInt(nextMatch[1], 10);
 
-        // Only consider if nextVerseNum is exactly 1 greater than lastVerse AND
-        // same chapter (since no book or chapter mentioned here, we assume continuation)
-        if (nextVerseNum === lastVerse + 1) {
-          lastVerse = nextVerseNum;
-        } else {
-          break;
-        }
-      }
-
-      // Compose verse or verse range accordingly
-      if (lastVerse > parseInt(verseStart, 10)) {
-        results.push(`${bookName} ${chapter}:${verseStart}-${lastVerse}`);
+      // Only accept consecutive verse numbers (exactly +1)
+      if (nextVerseNum === rangeEnd + 1) {
+        rangeEnd = nextVerseNum;
+        searchPos = nextVerseRegex.lastIndex;
+        nextVerseRegex.lastIndex = searchPos;
+      } else if (nextVerseNum <= rangeEnd) {
+        // Already included or repeated verse, skip and continue scanning
+        searchPos = nextVerseRegex.lastIndex;
+        nextVerseRegex.lastIndex = searchPos;
       } else {
-        results.push(`${bookName} ${chapter}:${verseStart}`);
+        // Non-consecutive verse found, stop range scanning
+        break;
       }
+    }
+
+    // Format final verse string
+    if (rangeEnd > verseStart) {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}-${rangeEnd}`);
+    } else {
+      matches.push(`${bookName} ${chapterNum}:${verseStart}`);
     }
   }
 
-  return results;
+  return matches;
 }
 
 // Show metadata in metaContainer with fade-in
