@@ -17,10 +17,13 @@ export function displayVerses(verses) {
   const verseList = document.getElementById('verseList');
   verseList.innerHTML = '';
   verses.forEach(v => {
-    const li = document.createElement('li');
-    li.textContent = v;
-    verseList.appendChild(li);
-  });
+  const li = document.createElement('li');
+  li.textContent = v;
+  li.contentEditable = 'true';        // <-- make editable
+  li.spellcheck = false;              // optional: disable spellcheck for verse text
+  li.style.cursor = 'text';           // optional: show text cursor on hover
+  verseList.appendChild(li);
+});
 }
 
 export function showToast(message) {

@@ -3,8 +3,9 @@ import { showToast } from './ui.js';
 export function copyToClipboard() {
   const metaText = document.getElementById('metaContainer').textContent.trim();
   const versesText = Array.from(document.getElementById('verseList').children)
-    .map(li => li.textContent)
-    .join('\n');
+  .map(li => li.textContent.trim())
+  .filter(text => text.length > 0)
+  .join('\n');
 
   if (!versesText) {
     showToast('No hay versículos para copiar.');
