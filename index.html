@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Extractor de Versículos v2.3.0</title>
@@ -154,6 +155,7 @@
   <textarea id="sermonText" rows="10" placeholder="Escribe tu sermón aquí..."></textarea><br />
   <button id="extractBtn">Extraer Versículos</button>
   <button id="copyBtn" disabled>Copiar Versículos</button>
+  <button id="download-pdf">Descargar PDF</button>
 
   <div id="metaContainer">
     <p><strong>Título:</strong> <span id="metadataTitle"></span></p>
