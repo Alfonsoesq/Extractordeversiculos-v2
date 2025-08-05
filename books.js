@@ -49,7 +49,7 @@ export const books = {
   'HCH': 'Hechos', 'HCH.': 'Hechos',
   'ROM': 'Romanos', 'ROM.': 'Romanos', 'RO': 'Romanos', 'RO.': 'Romanos',
   '1 CO': '1 Corintios', '1 CO.': '1 Corintios', '1CO': '1 Corintios', '1CO.': '1 Corintios',
-  '2 CO': '2 Corintios', '2 CO.': '2 Corintios', '2CO': '2 Corintios', '2CO.': '2 Corintios', '2CRO': '2 Corintios', '2CRO.': '2 Corintios',
+  '2 CO': '2 Corintios', '2 CO.': '2 Corintios', '2CO': '2 Corintios', '2CO.': '2 Corintios',
   'GA': 'Gálatas', 'GA.': 'Gálatas', 'GAL': 'Gálatas', 'GAL.': 'Gálatas',
   'EF': 'Efesios', 'EF.': 'Efesios',
   'FIL': 'Filipenses', 'FIL.': 'Filipenses',
