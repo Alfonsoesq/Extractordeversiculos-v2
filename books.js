@@ -8,7 +8,7 @@ export const books = {
   'JOS': 'Josué', 'JOS.': 'Josué',
   'JUE': 'Jueces', 'JUE.': 'Jueces',
   'RUT': 'Rut', 'RUT.': 'Rut',
-  '1 SAM': '1 Samuel', '1 SAM.': '1 Samuel',
+  '1 SAM': '1 Samuel', '1 SAM.': '1 Samuel', '1SAM': '1 Samuel', '1SAM.': '1 Samuel',
   '2 SAM': '2 Samuel', '2 SAM.': '2 Samuel', '2SAM': '2 Samuel', '2SAM.': '2 Samuel',
   '1 REY': '1 Reyes', '1 REY.': '1 Reyes', '1RE': '1 Reyes', '1RE.': '1 Reyes',
   '2 REY': '2 Reyes', '2 REY.': '2 Reyes',
