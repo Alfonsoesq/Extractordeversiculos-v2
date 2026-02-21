@@ -6,7 +6,7 @@ export function copyToClipboard() {
   .map(li => li.textContent.trim())
   .filter(text => text.length > 0)
   .join('\n');
-
+    
   if (!versesText) {
     showToast('No hay versículos para copiar.');
     return;

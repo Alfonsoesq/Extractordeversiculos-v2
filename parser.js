@@ -21,47 +21,49 @@ export function extractMetadata(text) {
 }
 
 export function extractVerses(text) {
-  const verseRegex = /(?:\(|\b)([1-3]?\s*[A-Za-zÁÉÍÓÚÑáéíóúñ\.]+)[\s\.]*(\d{1,3})(?::(\d{1,3}))?(?=\)|\b)/g;
+  // Enhanced Regex: Identifies Book + Numbers OR Standalone Numbers
+  // Group 1: Optional Book Name (with accents)
+  // Group 3: First Number (Chapter or Standalone Verse)
+  // Group 4: Optional Second Number (Verse)
+  const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?/g;
+  
   const matches = [];
+  let lastBook = null;
+  let lastChapter = null;
   let match;
 
   while ((match = verseRegex.exec(text)) !== null) {
-    let [fullMatch, abbr, chapter, verseStartStr] = match;
-    abbr = abbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-    const bookName = books[abbr];
-    if (!bookName) continue;
+    let [fullMatch, , rawAbbr, chapterOrVerse, verseOnly] = match;
 
-    const chapterNum = parseInt(chapter, 10);
-    const verseStart = verseStartStr ? parseInt(verseStartStr, 10) : null;
+    // Normalize the abbreviation to check against books.js
+    let abbr = rawAbbr ? rawAbbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase() : null;
+    let bookName = abbr ? books[abbr] : null;
 
-    if (!verseStart) {
-      matches.push(`${bookName} ${chapterNum}`);
-      continue;
-    }
-
-    let rangeEnd = verseStart;
-    let searchPos = verseRegex.lastIndex;
-    const verseArea = text.slice(searchPos, searchPos + 600);
-    const numRegex = /(?:\b|\s)(\d{1,3})(?=\D)/g;
-
-    let localMatch;
-    while ((localMatch = numRegex.exec(verseArea)) !== null) {
-      const num = parseInt(localMatch[1]);
-      if (num === rangeEnd + 1) {
-        rangeEnd = num;
-      } else if (num <= rangeEnd) {
-        continue;
+    if (bookName) {
+      // SCENARIO A: We found a book name (e.g., "Juan 3:16" or "Juan 3")
+      lastBook = bookName;
+      lastChapter = parseInt(chapterOrVerse, 10);
+      let verseStart = verseOnly ? parseInt(verseOnly, 10) : null;
+      
+      if (verseStart) {
+        matches.push(`${lastBook} ${lastChapter}:${verseStart}`);
       } else {
-        break;
+        // Just a chapter reference (e.g., "Salmo 23")
+        matches.push(`${lastBook} ${lastChapter}`);
       }
-    }
-
-    if (rangeEnd > verseStart) {
-      matches.push(`${bookName} ${chapterNum}:${verseStart}-${rangeEnd}`);
-    } else {
-      matches.push(`${bookName} ${chapterNum}:${verseStart}`);
+    } 
+    else if (lastBook && !rawAbbr && !fullMatch.includes(':')) {
+      // SCENARIO B: No book found, but we have "memory" of a previous book
+      // This handles lists like "Juan 3:16, 18" where '18' is chapterOrVerse
+      let nextVerse = parseInt(chapterOrVerse, 10);
+      
+      // Basic validation: ensure it's not a huge random number
+      if (nextVerse > 0 && nextVerse < 200) {
+        matches.push(`${lastBook} ${lastChapter}:${nextVerse}`);
+      }
     }
   }
 
-  return matches;
+  // Remove duplicates and return
+  return [...new Set(matches)];
 }
