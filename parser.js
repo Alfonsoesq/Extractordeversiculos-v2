@@ -41,12 +41,14 @@ export function extractVerses(text, title) {
     anchorChapter = parseInt(titleMatch[2], 10);
   }
 
-  // Refined Regex for "Versículos 1-9" support
+  // Refined Regex: 
+  // Group 3-5: Full Refs | Group 6-7: (v. 2-3) | Group 8-9: Versículos 1-9
   const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?([-–]\d{1,3})?|(?:\(v(?:v)?\.?\s*(\d{1,3})([-–]\d{1,3})?\))|(?:Versículos\s*(\d{1,3})(?:[-–](\d{1,3}))?)/gi;
   
   const matches = [];
   let match;
 
+  // Add the Title itself to the results
   if (anchorBook) matches.push(`${anchorBook} ${anchorChapter}`);
 
   while ((match = verseRegex.exec(text)) !== null) {
@@ -58,12 +60,16 @@ export function extractVerses(text, title) {
       let ch = parseInt(chOrV, 10);
       let vStart = vOnly ? parseInt(vOnly, 10) : null;
       let vEnd = rangeEnd ? rangeEnd.replace(/[-–]/, '') : null;
-      matches.push(vStart ? (vEnd ? `${currentBook} ${ch}:${vStart}-${vEnd}` : `${currentBook} ${ch}:${vStart}`) : `${currentBook} ${ch}`);
+      
+      let result = vStart ? (vEnd ? `${currentBook} ${ch}:${vStart}-${vEnd}` : `${currentBook} ${ch}:${vStart}`) : `${currentBook} ${ch}`;
+      // Prevent duplicate title header
+      if (result !== matches[0]) matches.push(result);
     } 
     else if (anchorBook && (standaloneV || wordVersiculo)) {
       let vStart = standaloneV || wordVersiculo;
-      let vEndRaw = standaloneVRange || wordVersiculoRange;
+      let vEndRaw = standaloneVRange || wordVersiculoRange; // For (v. 2-3) or Versículos 1-9
       let vEnd = vEndRaw ? vEndRaw.replace(/[-–]/, '') : null;
+
       matches.push(vEnd ? `${anchorBook} ${anchorChapter}:${vStart}-${vEnd}` : `${anchorBook} ${anchorChapter}:${vStart}`);
     }
   }
