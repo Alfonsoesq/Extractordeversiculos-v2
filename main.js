@@ -2,6 +2,7 @@ import { extractMetadata, extractVerses } from './parser.js';
 import { showMetadata, displayVerses, showToast } from './ui.js';
 import { copyToClipboard } from './copier.js';
 import { generatePDF } from './pdf.js';
+
 // Make jsPDF globally available from the cdn
 if (window.jspdf?.jsPDF) {
   window.jsPDF = window.jspdf.jsPDF;
@@ -20,12 +21,16 @@ extractBtn.addEventListener('click', () => {
     return;
   }
 
+  // 1. Get metadata object (title, tema, date)
+  const metadata = extractMetadata(text);
+  
+  // 2. Pass the text AND the title to the verse extractor
   const verses = extractVerses(text, metadata.title);
-  const verses = extractVerses(text);
 
+  // 3. Update the UI with the results
   showMetadata(metadata);
   displayVerses(verses);
-  copyBtn.disabled = verses.length === 0;
+  copyBtn.disabled = (verses.length === 0);
 
   if (verses.length === 0) {
     showToast('No se encontraron versículos.');
@@ -35,8 +40,6 @@ extractBtn.addEventListener('click', () => {
 copyBtn.addEventListener('click', copyToClipboard);
 
 document.getElementById("download-pdf").addEventListener("click", () => {
-  console.log("Download PDF button clicked");
-
   const metaContainer = document.getElementById('metaContainer');
   const paragraphs = metaContainer.querySelectorAll('p');
 
@@ -45,7 +48,6 @@ document.getElementById("download-pdf").addEventListener("click", () => {
     return;
   }
 
-  // Extract text content by splitting on ':'
   const title = paragraphs[0].textContent.split(':').slice(1).join(':').trim();
   const tema = paragraphs[1].textContent.split(':').slice(1).join(':').trim();
   const fecha = paragraphs[2].textContent.split(':').slice(1).join(':').trim();
@@ -65,6 +67,5 @@ document.getElementById("download-pdf").addEventListener("click", () => {
     return;
   }
 
-  console.log({ title, tema, fecha, verses });
   generatePDF(title, tema, fecha, verses);
 });
