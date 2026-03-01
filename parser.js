@@ -3,7 +3,7 @@ import books from './books.js';
 export function extractMetadata(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
   const title = lines[0] || 'Título no encontrado';
-  let tema = 'Tema no encontrado';
+  let tema = null; // Changed to null so we can detect if it's missing
 
   for (const line of lines.slice(1)) {
     if (line.toLowerCase().startsWith('tema')) {
@@ -30,9 +30,9 @@ export function extractVerses(text, title) {
     return foundValue || null;
   };
 
+  // 1. Set Anchor
   const titleRegex = /([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+)\s*(\d{1,3})/i;
   const titleMatch = title ? title.match(titleRegex) : null;
-  
   let anchorBook = null;
   let anchorChapter = null;
 
@@ -41,38 +41,56 @@ export function extractVerses(text, title) {
     anchorChapter = parseInt(titleMatch[2], 10);
   }
 
-  // Refined Regex: 
-  // Group 3-5: Full Refs | Group 6-7: (v. 2-3) | Group 8-9: Versículos 1-9
-  const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?([-–]\d{1,3})?|(?:\(v(?:v)?\.?\s*(\d{1,3})([-–]\d{1,3})?\))|(?:Versículos\s*(\d{1,3})(?:[-–](\d{1,3}))?)/gi;
+  // 2. The Regex (Improved to catch standalone Ch:V patterns like ; 24:12)
+  const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3}):(\d{1,3})([-–]\d{1,3})?|(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})|(?:\(v(?:v)?\.?\s*(\d{1,3})([-–]\d{1,3})?\))|(?:Versículos\s*(\d{1,3})(?:[-–](\d{1,3}))?)/gi;
   
   const matches = [];
+  let lastBook = anchorBook;
+  let lastChapter = anchorChapter;
   let match;
 
-  // Add the Title itself to the results
-  if (anchorBook) matches.push(`${anchorBook} ${anchorChapter}`);
+  if (anchorBook) matches.push({ book: anchorBook, chapter: anchorChapter, verse: null });
 
   while ((match = verseRegex.exec(text)) !== null) {
-    let [fullMatch, , rawAbbr, chOrV, vOnly, rangeEnd, standaloneV, standaloneVRange, wordVersiculo, wordVersiculoRange] = match;
+    let [full, b1, rb1, c1, v1, r1, b2, rb2, c2, sv1, svr1, wv1, wvr1] = match;
 
-    let currentBook = findBookName(rawAbbr);
+    let book = findBookName(rb1 || rb2);
+    if (book) lastBook = book;
 
-    if (currentBook) {
-      let ch = parseInt(chOrV, 10);
-      let vStart = vOnly ? parseInt(vOnly, 10) : null;
-      let vEnd = rangeEnd ? rangeEnd.replace(/[-–]/, '') : null;
-      
-      let result = vStart ? (vEnd ? `${currentBook} ${ch}:${vStart}-${vEnd}` : `${currentBook} ${ch}:${vStart}`) : `${currentBook} ${ch}`;
-      // Prevent duplicate title header
-      if (result !== matches[0]) matches.push(result);
-    } 
-    else if (anchorBook && (standaloneV || wordVersiculo)) {
-      let vStart = standaloneV || wordVersiculo;
-      let vEndRaw = standaloneVRange || wordVersiculoRange; // For (v. 2-3) or Versículos 1-9
-      let vEnd = vEndRaw ? vEndRaw.replace(/[-–]/, '') : null;
-
-      matches.push(vEnd ? `${anchorBook} ${anchorChapter}:${vStart}-${vEnd}` : `${anchorBook} ${anchorChapter}:${vStart}`);
+    // Logic for Ch:V patterns (e.g. 21:2 or 24:12)
+    if (c1 && v1) {
+      lastChapter = parseInt(c1, 10);
+      let vStart = parseInt(v1, 10);
+      let vEnd = r1 ? parseInt(r1.replace(/[-–]/, ''), 10) : null;
+      if (lastBook) matches.push({ book: lastBook, chapter: lastChapter, verse: vStart, end: vEnd });
+    }
+    // Logic for Book Chapter patterns (e.g. Mateo 15)
+    else if (c2 && book) {
+      lastChapter = parseInt(c2, 10);
+      matches.push({ book: lastBook, chapter: lastChapter, verse: null });
+    }
+    // Logic for shorthands (v. 2) or (Versículos 1-9)
+    else if (anchorBook && (sv1 || wv1)) {
+      let vStart = parseInt(sv1 || wv1, 10);
+      let vEnd = (svr1 || wvr1) ? parseInt((svr1 || wvr1).replace(/[-–]/, ''), 10) : null;
+      matches.push({ book: anchorBook, chapter: anchorChapter, verse: vStart, end: vEnd });
     }
   }
 
-  return matches; 
+  // 3. THE COLLAPSE LOGIC
+  // This groups consecutive verses: Mateo 15:1, Mateo 15:2 -> Mateo 15:1-2
+  const collapsed = [];
+  for (let m of matches) {
+    let last = collapsed[collapsed.length - 1];
+    if (last && m.verse && last.verse && m.book === last.book && m.chapter === last.chapter && (m.verse === last.end + 1 || m.verse === last.verse + 1)) {
+      last.end = m.end || m.verse;
+    } else {
+      collapsed.push({ ...m, end: m.end || m.verse });
+    }
+  }
+
+  return collapsed.map(m => {
+    if (!m.verse) return `${m.book} ${m.chapter}`;
+    return m.end && m.end !== m.verse ? `${m.book} ${m.chapter}:${m.verse}-${m.end}` : `${m.book} ${m.chapter}:${m.verse}`;
+  });
 }
