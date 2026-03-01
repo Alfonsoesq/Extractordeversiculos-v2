@@ -21,7 +21,21 @@ export function extractMetadata(text) {
 }
 
 export function extractVerses(text, title) {
-  // 1. DETERMINE THE ANCHOR FROM TITLE (e.g., "Mateo 15")
+  // HELPER: Resolves book names from either Key (MT) or Value (Mateo)
+  const findBookName = (inputAbbr) => {
+    if (!inputAbbr) return null;
+    const cleanAbbr = inputAbbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+    
+    // 1. Check if it's a key (e.g., 'MT')
+    if (books[cleanAbbr]) return books[cleanAbbr];
+    
+    // 2. Check if it's a value (e.g., 'MATEO')
+    const values = Object.values(books);
+    const foundValue = values.find(v => v.toUpperCase() === cleanAbbr);
+    return foundValue || null;
+  };
+
+  // 1. SET THE ANCHOR FROM TITLE
   const titleRegex = /([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+)\s*(\d{1,3})/i;
   const titleMatch = title ? title.match(titleRegex) : null;
   
@@ -29,31 +43,29 @@ export function extractVerses(text, title) {
   let anchorChapter = null;
 
   if (titleMatch) {
-    let abbr = titleMatch[1].replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-    anchorBook = books[abbr] || null;
+    anchorBook = findBookName(titleMatch[1]);
     anchorChapter = parseInt(titleMatch[2], 10);
   }
 
   // 2. REGEX FOR MATCHING
-  // Captures Full Refs, (v. 2), or "Versículos 1-9"
+  // Groups: 3=ChapterOrStandalone, 4=Verse, 5=Range, 6=StandaloneV, 7=StandaloneVRange, 8=WordVersiculo, 9=WordVersiculoRange
   const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?([-–]\d{1,3})?|(?:\(v(?:v)?\.?\s*(\d{1,3})([-–]\d{1,3})?\))|(?:Versículos\s*(\d{1,3})([-–]\d{1,3})?)/gi;
   
   const matches = [];
   let match;
 
-  // Add the Title itself to the list if it's a valid reference
+  // Add the Title itself if it's a valid reference
   if (anchorBook) matches.push(`${anchorBook} ${anchorChapter}`);
 
   while ((match = verseRegex.exec(text)) !== null) {
-    let [fullMatch, , rawAbbr, chapterOrVerse, verseOnly, rangeEnd, standaloneV, standaloneVRange, wordVersiculo, wordVersiculoRange] = match;
+    let [fullMatch, , rawAbbr, chOrV, vOnly, rangeEnd, standaloneV, standaloneVRange, wordVersiculo, wordVersiculoRange] = match;
 
-    let abbr = rawAbbr ? rawAbbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase() : null;
-    let currentBook = abbr ? books[abbr] : null;
+    let currentBook = findBookName(rawAbbr);
 
-    // CASE 1: FULL REFERENCE (e.g., 1Co. 8:1 or Mateo 15:1-9)
+    // CASE 1: FULL REFERENCE (e.g., 1Co. 8:1)
     if (currentBook) {
-      let ch = parseInt(chapterOrVerse, 10);
-      let vStart = verseOnly ? parseInt(verseOnly, 10) : null;
+      let ch = parseInt(chOrV, 10);
+      let vStart = vOnly ? parseInt(vOnly, 10) : null;
       let vEnd = rangeEnd ? rangeEnd.replace(/[-–]/, '') : null;
 
       if (vStart) {
@@ -62,8 +74,7 @@ export function extractVerses(text, title) {
         matches.push(`${currentBook} ${ch}`);
       }
     } 
-    // CASE 2: STANDALONE VERSE (e.g., v. 2 or Versículos 1-9)
-    // Uses the Anchor from the Title to stay consistent
+    // CASE 2: STANDALONE VERSE (Uses Anchor from Title)
     else if (anchorBook && (standaloneV || wordVersiculo)) {
       let vStart = standaloneV || wordVersiculo;
       let vEndRaw = standaloneVRange || wordVersiculoRange;
