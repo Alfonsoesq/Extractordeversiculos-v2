@@ -20,7 +20,7 @@ extractBtn.addEventListener('click', () => {
     return;
   }
 
-  const metadata = extractMetadata(text);
+  const verses = extractVerses(text, metadata.title);
   const verses = extractVerses(text);
 
   showMetadata(metadata);

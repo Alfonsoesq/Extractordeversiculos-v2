@@ -20,50 +20,59 @@ export function extractMetadata(text) {
   return { title, tema, date: formattedDate };
 }
 
-export function extractVerses(text) {
-  // Enhanced Regex: Identifies Book + Numbers OR Standalone Numbers
-  // Group 1: Optional Book Name (with accents)
-  // Group 3: First Number (Chapter or Standalone Verse)
-  // Group 4: Optional Second Number (Verse)
-  const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?/g;
+export function extractVerses(text, title) {
+  // 1. DETERMINE THE ANCHOR FROM TITLE
+  // We look at the title (e.g., "Mateo 15") to set the "Home Base"
+  const titleRegex = /([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+)\s*(\d{1,3})/i;
+  const titleMatch = title.match(titleRegex);
+  
+  let anchorBook = null;
+  let anchorChapter = null;
+
+  if (titleMatch) {
+    let abbr = titleMatch[1].replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+    anchorBook = books[abbr] || null;
+    anchorChapter = parseInt(titleMatch[2], 10);
+  }
+
+  // 2. REGEX FOR MATCHING
+  // Captures Full Refs, (v. 2), or "Versículos 1-9"
+  const verseRegex = /(([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+))?[\s\.]*(\d{1,3})(?::(\d{1,3}))?([-–]\d{1,3})?|(?:\(v(?:v)?\.?\s*(\d{1,3})([-–]\d{1,3})?\))|(?:Versículos\s*(\d{1,3})([-–]\d{1,3})?)/gi;
   
   const matches = [];
-  let lastBook = null;
-  let lastChapter = null;
   let match;
 
+  // Add the Title itself to the list if it's a valid reference
+  if (anchorBook) matches.push(`${anchorBook} ${anchorChapter}`);
+
   while ((match = verseRegex.exec(text)) !== null) {
-    let [fullMatch, , rawAbbr, chapterOrVerse, verseOnly] = match;
+    let [fullMatch, , rawAbbr, chapterOrVerse, verseOnly, rangeEnd, standaloneV, standaloneVRange, wordVersiculo, wordVersiculoRange] = match;
 
-    // Normalize the abbreviation to check against books.js
     let abbr = rawAbbr ? rawAbbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase() : null;
-    let bookName = abbr ? books[abbr] : null;
+    let currentBook = abbr ? books[abbr] : null;
 
-    if (bookName) {
-      // SCENARIO A: We found a book name (e.g., "Juan 3:16" or "Juan 3")
-      lastBook = bookName;
-      lastChapter = parseInt(chapterOrVerse, 10);
-      let verseStart = verseOnly ? parseInt(verseOnly, 10) : null;
-      
-      if (verseStart) {
-        matches.push(`${lastBook} ${lastChapter}:${verseStart}`);
+    // --- CASE 1: FULL REFERENCE (e.g., 1Co. 8:1) ---
+    if (currentBook) {
+      let ch = parseInt(chapterOrVerse, 10);
+      let vStart = verseOnly ? parseInt(verseOnly, 10) : null;
+      let vEnd = rangeEnd ? rangeEnd.replace(/[-–]/, '') : null;
+
+      if (vStart) {
+        matches.push(vEnd ? `${currentBook} ${ch}:${vStart}-${vEnd}` : `${currentBook} ${ch}:${vStart}`);
       } else {
-        // Just a chapter reference (e.g., "Salmo 23")
-        matches.push(`${lastBook} ${lastChapter}`);
+        matches.push(`${currentBook} ${ch}`);
       }
     } 
-    else if (lastBook && !rawAbbr && !fullMatch.includes(':')) {
-      // SCENARIO B: No book found, but we have "memory" of a previous book
-      // This handles lists like "Juan 3:16, 18" where '18' is chapterOrVerse
-      let nextVerse = parseInt(chapterOrVerse, 10);
-      
-      // Basic validation: ensure it's not a huge random number
-      if (nextVerse > 0 && nextVerse < 200) {
-        matches.push(`${lastBook} ${lastChapter}:${nextVerse}`);
-      }
+    // --- CASE 2: STANDALONE VERSE (e.g., v. 2 or Versículos 1-9) ---
+    // These ALWAYS use the Anchor from the Title
+    else if (anchorBook && (standaloneV || wordVersiculo)) {
+      let vStart = standaloneV || wordVersiculo;
+      let vEndRaw = standaloneVRange || wordVersiculoRange;
+      let vEnd = vEndRaw ? vEndRaw.replace(/[-–]/, '') : null;
+
+      matches.push(vEnd ? `${anchorBook} ${anchorChapter}:${vStart}-${vEnd}` : `${anchorBook} ${anchorChapter}:${vStart}`);
     }
   }
 
-  // Remove duplicates and return
   return [...new Set(matches)];
 }
