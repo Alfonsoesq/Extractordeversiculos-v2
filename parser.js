@@ -21,10 +21,9 @@ export function extractMetadata(text) {
 }
 
 export function extractVerses(text, title) {
-  // 1. DETERMINE THE ANCHOR FROM TITLE
-  // We look at the title (e.g., "Mateo 15") to set the "Home Base"
+  // 1. DETERMINE THE ANCHOR FROM TITLE (e.g., "Mateo 15")
   const titleRegex = /([1-3]?\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\.]+)\s*(\d{1,3})/i;
-  const titleMatch = title.match(titleRegex);
+  const titleMatch = title ? title.match(titleRegex) : null;
   
   let anchorBook = null;
   let anchorChapter = null;
@@ -51,7 +50,7 @@ export function extractVerses(text, title) {
     let abbr = rawAbbr ? rawAbbr.replace(/\./g, '').replace(/\s+/g, '').toUpperCase() : null;
     let currentBook = abbr ? books[abbr] : null;
 
-    // --- CASE 1: FULL REFERENCE (e.g., 1Co. 8:1) ---
+    // CASE 1: FULL REFERENCE (e.g., 1Co. 8:1 or Mateo 15:1-9)
     if (currentBook) {
       let ch = parseInt(chapterOrVerse, 10);
       let vStart = verseOnly ? parseInt(verseOnly, 10) : null;
@@ -63,8 +62,8 @@ export function extractVerses(text, title) {
         matches.push(`${currentBook} ${ch}`);
       }
     } 
-    // --- CASE 2: STANDALONE VERSE (e.g., v. 2 or Versículos 1-9) ---
-    // These ALWAYS use the Anchor from the Title
+    // CASE 2: STANDALONE VERSE (e.g., v. 2 or Versículos 1-9)
+    // Uses the Anchor from the Title to stay consistent
     else if (anchorBook && (standaloneV || wordVersiculo)) {
       let vStart = standaloneV || wordVersiculo;
       let vEndRaw = standaloneVRange || wordVersiculoRange;
